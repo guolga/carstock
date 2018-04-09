@@ -2,6 +2,12 @@ import React, { Component } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import ReactTable from "react-table";
 import "react-table/react-table.css";
+import { confirmAlert } from 'react-confirm-alert'; // Import
+import 'react-confirm-alert/src/react-confirm-alert.css'; // Import css
+import Addcar from './Addcar.js';
+import Editcar from './Editcar';
+import {CSVLink, CSVDownload} from 'react-csv';
+
 
 class Carlist extends Component {
     constructor(props) {
@@ -16,14 +22,7 @@ class Carlist extends Component {
     }
 
 
-    deleteCar = (value) => {
-        fetch(value, { method: 'DELETE' })
-            .then(res => {
-            this.loadCars();
-            toast.success("Car Successfully Deleted!", {
-                position: toast.POSITION.TOP_RIGHT});
-    })}
-
+    //Load card from REST API
     loadCars = () => {
         fetch('https://carstockrest.herokuapp.com/cars')
             .then(res => res.json())
@@ -32,11 +31,61 @@ class Carlist extends Component {
             })
     }
 
+    //Delete car
+    onDelClick = (idLink) => {
+        confirmAlert({
+            title: 'Confirm to submit',
+            message: 'Are you sure to do this.',
+            buttons: [
+                {
+                    label: 'Yes',
+                    onClick: () => {
+                        fetch(idLink, { method: 'DELETE' })
+                            .then(res => this.loadCars())
+                            .catch(err => console.error(err))
+                        toast.success("Delete succeed", {
+                            position: toast.POSITION.BOTTOM_LEFT
+                        });
+                    }
+                },
+                {
+                    label: 'No',
+                }
+            ]
+        })
+    };
+
+    //Add car 
+    addCar = (newCar) => {
+        fetch('https://carstockrest.herokuapp.com/cars', { 
+            method: 'POST', 
+            headers : {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(newCar)
+        })
+        .then(res => this.loadCars())
+        .catch(err => console.error(err))
+    }
+
+//Edit car
+    updateCar = (link, car) => {
+        fetch(link, { 
+            method: 'PUT', 
+            headers : {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(car)
+        })
+        .then(res => this.loadCars())
+        .catch(err => console.error(err))
+    }
+
     render() {
 
         return (
             <div className='container'>
                 <h2>My Cars</h2>
+                <div className="row">
+                    <Addcar addCar={this.addCar}/>
+                    <CSVLink data={this.state.cars} style={{margin:15}}>Download CSV</CSVLink>
+                </div>
                 <ReactTable
                     data={this.state.cars}
                     filterable
@@ -69,11 +118,20 @@ class Carlist extends Component {
                                     accessor: "price"
                                 },
                                 {
+                                    id: 'button',
+                                    sortable: false,
                                     Header: "",
                                     accessor: "_links.self.href",
                                     filterable: false,
-                                    Cell: ({ value }) => (<button type="button" class="btn btn-danger" onClick={() => {this.deleteCar(value)}}>Delete</button>)
+                                    Cell: ({ value }) => (<button className="btn btn-default btn-link" onClick={() => { this.onDelClick(value) }}>Delete</button>)
                                 },
+                                {
+                                    id: 'button',
+                                    sortable: false,
+                                    Header: "",
+                                    accessor: "_links.self.href",
+                                    filterable: false,                                    Cell: ({ row, value }) => (<Editcar updateCar={this.updateCar} link={value} car={row} />)
+                                }
                             ]
                         },
 
@@ -84,7 +142,7 @@ class Carlist extends Component {
                     }}
                     className="-striped -highlight"
                 />
-                   <ToastContainer autoClose={1500}/>
+                <ToastContainer autoClose={1500} />
             </div>
         );
     }
